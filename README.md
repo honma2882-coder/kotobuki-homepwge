@@ -1,1 +1,15 @@
-# kotobuki-homepwge
+# 寿ウェディング ホームページ（テスト版）
+
+結婚式二次会代行「寿ウェディング」の静的ホームページです。ビルド不要で、`index.html` をブラウザで開けば確認できます。
+
+## ページ構成
+- `index.html` … TOP（ヒーロー画像・最低料金・各ページへのリンク）
+- `concept.html` … コンセプト
+- `plan.html` … プロスタッフ・業務内容・料金
+- `contact.html` … お問い合わせフォーム（テスト版のため送信は行いません）
+
+## 差し替えポイント
+- ロゴ: `images/logo.svg`（仮ロゴ）
+- TOP画像: `images/hero.svg`（仮イラスト。実写真にする場合は `index.html` の `src` を変更）
+- 色・フォント: `css/style.css` 冒頭の `:root`
+- フォーム送信: `js/contact.js`（本番ではフォーム送信サービス等に接続）
