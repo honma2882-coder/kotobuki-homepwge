@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>トランプめくり</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Playfair+Display:wght@700&display=swap">
+<style>
+/* Layout: one-screen card table — deck on the left, face-up pile on the right, counter above. Single dark felt look by choice. */
+:root {
+  --felt: #17463a;
+  --felt-deep: #0e2f27;
+  --ink: #f3efe4;
+  --muted: #a9c2b6;
+  --card: #fbf8f1;
+  --card-edge: #d9d2c2;
+  --red: #c0283b;
+  --black: #1d1f24;
+  --back: #7a1e2c;
+  --back-line: #e6c88f;
+  --f-ui: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --f-rank: "Playfair Display", Georgia, "Times New Roman", serif;
+  --cw: min(38vw, 210px, 30vh);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 40%, var(--felt) 0%, var(--felt-deep) 100%);
+  background-color: var(--felt-deep);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.app { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(20px, 5vh, 44px); padding-block: 16px; box-sizing: border-box; }
+header { text-align: center; display: grid; gap: 4px; }
+h1 { margin: 0; font-size: 1.05rem; font-weight: 700; letter-spacing: .2em; color: var(--muted); }
+.count { font-family: var(--f-rank); font-size: 2.6rem; font-variant-numeric: tabular-nums; line-height: 1; }
+.count small { font-family: var(--f-ui); font-size: .9rem; color: var(--muted); margin-left: 6px; letter-spacing: .05em; }
+.table { display: flex; gap: clamp(16px, 6vw, 56px); align-items: center; }
+.slot { width: var(--cw); aspect-ratio: 5 / 7; max-width: 100%; position: relative; border-radius: calc(var(--cw) * .07); }
+.slot.empty { outline: 2px dashed rgba(243, 239, 228, .25); outline-offset: -2px; }
+.label { position: absolute; inset: auto 0 calc(-1.8em) 0; text-align: center; font-size: .8rem; color: var(--muted); letter-spacing: .15em; z-index: 1; }
+button.deck { all: unset; cursor: pointer; display: block; width: 100%; height: 100%; position: relative; border-radius: inherit; }
+button.deck:focus-visible { outline: 3px solid var(--back-line); outline-offset: 4px; }
+button.deck[disabled] { cursor: default; }
+.back, .face {
+  position: absolute; inset: 0; border-radius: inherit; box-sizing: border-box;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.back {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(230, 200, 143, .28) 6px 7px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(230, 200, 143, .28) 6px 7px),
+    var(--back);
+  border: calc(var(--cw) * .045) solid var(--card);
+  box-shadow: inset 0 0 0 2px var(--back-line), 0 2px 0 var(--card-edge), 0 10px 24px rgba(0, 0, 0, .35);
+}
+.stack1 { transform: translate(3px, 3px); }
+.stack2 { transform: translate(6px, 6px); }
+.face {
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--card-edge), 0 10px 24px rgba(0, 0, 0, .35);
+  color: var(--black);
+  font-family: var(--f-rank);
+}
+.face.red { color: var(--red); }
+.corner { position: absolute; display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: calc(var(--cw) * .17); font-weight: 700; }
+.corner span { font-size: .8em; margin-top: 2px; font-family: system-ui, sans-serif; }
+.corner.tl { top: 7%; left: 8%; }
+.corner.br { bottom: 7%; right: 8%; transform: rotate(180deg); }
+.pip { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--cw) * .48); font-family: system-ui, sans-serif; }
+.face.court .pip { font-family: var(--f-rank); font-size: calc(var(--cw) * .42); }
+.face.court .pip::after { content: ""; position: absolute; inset: 22% 24%; border: 1.5px solid currentColor; border-radius: 6px; opacity: .35; }
+.face.joker .pip { font-family: var(--f-rank); font-size: calc(var(--cw) * .15); letter-spacing: .08em; writing-mode: vertical-rl; }
+.flip { position: absolute; inset: 0; transform-style: preserve-3d; border-radius: inherit; }
+.flip .face { transform: rotateY(0deg); }
+.flip .back { transform: rotateY(180deg); }
+.flip.anim { animation: deal .55s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes deal {
+  0% { transform: translateX(calc(-1 * (var(--cw) + var(--gap)))) rotateY(180deg); }
+  100% { transform: translateX(0) rotateY(0deg); }
+}
+.controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 1.4em; }
+.btn { font: inherit; font-size: .95rem; font-weight: 700; color: var(--ink); background: rgba(243, 239, 228, .08); border: 1.5px solid rgba(243, 239, 228, .35); border-radius: 999px; padding: 10px 20px; cursor: pointer; }
+.btn:hover { background: rgba(243, 239, 228, .16); }
+.btn:focus-visible { outline: 3px solid var(--back-line); outline-offset: 2px; }
+.btn[aria-pressed="true"] { background: var(--back-line); color: var(--felt-deep); border-color: var(--back-line); }
+.hint { font-size: .8rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) { .flip.anim { animation: none; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>トランプめくり</h1>
+    <div class="count" aria-live="polite"><span id="left">52</span><small>枚のこり</small></div>
+  </header>
+
+  <div class="table" id="table">
+    <div class="slot" id="deckSlot">
+      <button class="deck" id="deck" aria-label="カードをめくる">
+        <div class="back stack2"></div>
+        <div class="back stack1"></div>
+        <div class="back"></div>
+      </button>
+      <div class="label">山札</div>
+    </div>
+    <div class="slot empty" id="pile">
+      <div class="label" id="pileLabel">めくったカード</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="reset" type="button">シャッフルしてやり直す</button>
+    <button class="btn" id="joker" type="button" aria-pressed="false">ジョーカーを入れる</button>
+  </div>
+  <p class="hint">山札をタップ（またはスペースキー）でめくる</p>
+</div>
+
+<script>
+(() => {
+  const SUITS = [["♠", false], ["♥", true], ["♦", true], ["♣", false]];
+  const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  const $ = id => document.getElementById(id);
+  const deckBtn = $("deck"), pile = $("pile"), left = $("left"), table = $("table");
+  let deck = [], total = 52, withJoker = false;
+
+  function build() {
+    const d = [];
+    for (const [s, red] of SUITS) for (const r of RANKS) d.push({ r, s, red });
+    if (withJoker) d.push({ joker: true, red: false }, { joker: true, red: true });
+    for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+    return d;
+  }
+
+  function faceHTML(c) {
+    if (c.joker) {
+      return `<div class="face joker${c.red ? " red" : ""}"><div class="corner tl">★</div><div class="pip">JOKER</div><div class="corner br">★</div></div>`;
+    }
+    const court = "JQK".includes(c.r) && c.r !== "10";
+    const center = court ? c.r : c.s;
+    return `<div class="face${c.red ? " red" : ""}${court ? " court" : ""}">
+      <div class="corner tl">${c.r}<span>${c.s}</span></div>
+      <div class="pip">${center}</div>
+      <div class="corner br">${c.r}<span>${c.s}</span></div></div>`;
+  }
+
+  function name(c) {
+    if (c.joker) return "ジョーカー";
+    const sn = { "♠": "スペード", "♥": "ハート", "♦": "ダイヤ", "♣": "クラブ" }[c.s];
+    return `${sn}の${c.r}`;
+  }
+
+  function render() {
+    left.textContent = deck.length;
+    deckBtn.style.visibility = deck.length ? "visible" : "hidden";
+    deckBtn.disabled = !deck.length;
+    $("deckSlot").classList.toggle("empty", !deck.length);
+  }
+
+  function flip() {
+    if (!deck.length) return;
+    const c = deck.pop();
+    const gap = table.getBoundingClientRect().width - pile.getBoundingClientRect().width * 2;
+    const el = document.createElement("div");
+    el.className = "flip anim";
+    el.style.setProperty("--gap", gap + "px");
+    el.innerHTML = faceHTML(c) + '<div class="back"></div>';
+    pile.appendChild(el);
+    pile.classList.remove("empty");
+    // keep only the last few cards in the DOM
+    const cards = pile.querySelectorAll(".flip");
+    if (cards.length > 4) cards[0].remove();
+    $("pileLabel").textContent = name(c);
+    render();
+  }
+
+  function reset() {
+    deck = build();
+    pile.querySelectorAll(".flip").forEach(n => n.remove());
+    pile.classList.add("empty");
+    $("pileLabel").textContent = "めくったカード";
+    render();
+  }
+
+  deckBtn.addEventListener("click", flip);
+  $("reset").addEventListener("click", reset);
+  $("joker").addEventListener("click", e => {
+    withJoker = !withJoker;
+    e.currentTarget.setAttribute("aria-pressed", withJoker);
+    e.currentTarget.textContent = withJoker ? "ジョーカーあり" : "ジョーカーを入れる";
+    reset();
+  });
+  document.addEventListener("keydown", e => {
+    if ((e.key === " " || e.key === "Enter") && document.activeElement?.tagName !== "BUTTON") { e.preventDefault(); flip(); }
+  });
+  reset();
+})();
+</script>
+</html>
