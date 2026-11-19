@@ -190,15 +190,15 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
 <script>
 (function(){
   const COLORS = [
-    {name:'仕事', v:'--c0'}, {name:'家事', v:'--c1'}, {name:'SNS', v:'--c2'},
-    {name:'用事', v:'--c3'}, {name:'趣味', v:'--c4'}, {name:'美容', v:'--c5'}, {name:'その他', v:'--c6'}
+    {name:'仕事', v:'--c0'}, {name:'SNS', v:'--c2'}, {name:'家事', v:'--c1'}, {name:'遊び', v:'--c4'}
   ];
   const WD = ['日','月','火','水','木','金','土'];
-  const KEY = 'hibi-memo-v1';
+  const KEY = 'hibi-memo-v2';
   const pad = n => String(n).padStart(2,'0');
   const ymd = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
   const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
-  const cvar = i => 'var('+COLORS[i]?.v+')';
+  const cidx = i => (i>=0 && i<COLORS.length) ? i : 0;
+  const cvar = i => 'var('+COLORS[cidx(i)].v+')';
   const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
   const today = new Date();
@@ -216,11 +216,11 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
     const t = ymd(new Date());
     return [
       {id:uid(), date:t, title:'収録', start:'14:00', end:'', color:0, done:false},
-      {id:uid(), date:t, title:'就寝', start:'23:00', end:'', color:6, done:false},
-      {id:uid(), date:t, title:'せんたく', start:'', end:'', color:1, done:true},
-      {id:uid(), date:t, title:'かみそめる', start:'', end:'', color:5, done:false},
-      {id:uid(), date:t, title:'ゴミ捨て', start:'', end:'', color:1, done:false},
-      {id:uid(), date:t, title:'SNSショート 3〜4本', start:'', end:'', color:2, done:false},
+      {id:uid(), date:t, title:'就寝', start:'23:00', end:'', color:2, done:false},
+      {id:uid(), date:t, title:'せんたく', start:'', end:'', color:2, done:true},
+      {id:uid(), date:t, title:'かみそめる', start:'', end:'', color:2, done:false},
+      {id:uid(), date:t, title:'ゴミ捨て', start:'', end:'', color:2, done:false},
+      {id:uid(), date:t, title:'SNSショート 3〜4本', start:'', end:'', color:1, done:false},
       {id:uid(), date:t, title:'カミノバ', start:'', end:'', color:3, done:false}
     ];
   }
@@ -280,7 +280,7 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
       (timed ? `<span class="t">${i.start}${i.end?'<small>〜'+i.end+'</small>':''}</span>` : '') +
       `<button class="check" aria-label="${i.done?'未完了に戻す':'完了にする'}">${CHECK}</button>` +
       `<button class="title" title="タップで編集">${esc(i.title)}</button>` +
-      `<span class="tag">${COLORS[i.color]?.name||''}</span>`;
+      `<span class="tag">${COLORS[cidx(i.color)].name}</span>`;
     row.querySelector('.check').onclick = ()=>{ i.done = !i.done; save(); render(); };
     row.querySelector('.title').onclick = ()=> openEdit(i.id);
     return row;
@@ -322,7 +322,7 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
   const scrim = document.getElementById('editScrim');
   function openEdit(id){
     const i = items.find(x=>x.id===id); if(!i) return;
-    editingId = id; editColor = i.color;
+    editingId = id; editColor = cidx(i.color);
     document.getElementById('editTitle').value = i.title;
     document.getElementById('editDate').value = i.date;
     document.getElementById('editStart').value = i.start;
