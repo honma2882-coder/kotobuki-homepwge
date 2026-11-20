@@ -91,6 +91,8 @@ h1,h2{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance}
 .item.done .check{background:var(--cc)} .item.done .check svg{opacity:1}
 .item .title{flex:1;min-width:0;border:0;background:none;text-align:left;padding:4px 0;font-size:1rem;overflow-wrap:anywhere;font-family:var(--f-display);font-weight:500}
 .item.done .title{text-decoration:line-through;color:var(--muted)}
+.carry{flex:none;font-size:.68rem;padding:1px 8px;border-radius:99px;border:1px dashed var(--line);color:var(--muted);white-space:nowrap}
+.carried-note{font-size:.8rem;color:var(--muted);background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin-bottom:10px}
 .tag{flex:none;font-size:.68rem;padding:1px 8px;border-radius:99px;background:color-mix(in srgb,var(--cc) 18%,transparent);color:var(--ink)}
 .todo{padding-left:6px}
 
@@ -201,8 +203,9 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
   const cvar = i => 'var('+COLORS[cidx(i)].v+')';
   const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
-  const today = new Date();
+  let today = new Date();
   let items = load();
+  let carriedNow = carryOver();
   let selected = ymd(today);
   let viewY = today.getFullYear(), viewM = today.getMonth();
   let addColor = 0, editColor = 0, editingId = null;
@@ -225,6 +228,26 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
     ];
   }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+
+  // 自動繰り越し：前の日までに終わっていない「やること」（時間なし）を今日へ移す
+  function carryOver(){
+    const t = ymd(today); let n = 0;
+    items.forEach(i=>{
+      if(!i.done && !i.start && i.date < t){
+        if(!i.from) i.from = i.date;
+        i.date = t; n++;
+      }
+    });
+    if(n) save();
+    return n;
+  }
+  const dayDiff = (a,b) => Math.round((parse(b)-parse(a))/86400000);
+  function carryLabel(i){
+    if(!i.from) return '';
+    const f = parse(i.from), d = dayDiff(i.from, i.date);
+    if(d <= 0) return '';
+    return `<span class="carry" title="${f.getMonth()+1}/${f.getDate()}から繰り越し">繰り越し${d}日目</span>`;
+  }
 
   const byDate = d => items.filter(i => i.date === d);
   const sortTimed = arr => arr.slice().sort((a,b)=> a.start.localeCompare(b.start));
@@ -280,6 +303,7 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
       (timed ? `<span class="t">${i.start}${i.end?'<small>〜'+i.end+'</small>':''}</span>` : '') +
       `<button class="check" aria-label="${i.done?'未完了に戻す':'完了にする'}">${CHECK}</button>` +
       `<button class="title" title="タップで編集">${esc(i.title)}</button>` +
+      carryLabel(i) +
       `<span class="tag">${COLORS[cidx(i.color)].name}</span>`;
     row.querySelector('.check').onclick = ()=>{ i.done = !i.done; save(); render(); };
     row.querySelector('.title').onclick = ()=> openEdit(i.id);
@@ -296,6 +320,11 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
     tl.innerHTML=''; td.innerHTML='';
     if(!timed.length) tl.innerHTML = '<div class="empty">時間を入れて追加すると、ここに時系列で並びます</div>';
     timed.forEach(i=>tl.appendChild(itemEl(i,true)));
+    if(carriedNow && selected===ymd(today)){
+      const note = document.createElement('div'); note.className='carried-note';
+      note.textContent = `前の日に終わらなかったやることを${carriedNow}件、今日に繰り越しました`;
+      td.appendChild(note);
+    }
     if(!todo.length) td.innerHTML = '<div class="empty">時間を空欄にして追加すると、ここに入ります</div>';
     todo.forEach(i=>td.appendChild(itemEl(i,false)));
     const done = list.filter(i=>i.done).length;
@@ -358,6 +387,20 @@ input[type=time]{border:1px solid var(--line);border-radius:10px;padding:7px 8px
   document.getElementById('todayBtn').onclick = ()=>{ viewY=today.getFullYear(); viewM=today.getMonth(); selected=ymd(today); render(); };
 
   function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // 開いたまま日付が変わったときも繰り越す
+  function checkNewDay(){
+    const now = new Date();
+    if(ymd(now) === ymd(today)) return;
+    const wasToday = selected === ymd(today);
+    today = now;
+    carriedNow = carryOver();
+    if(wasToday){ selected = ymd(today); viewY = today.getFullYear(); viewM = today.getMonth(); }
+    render();
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkNewDay(); });
+  window.addEventListener('focus', checkNewDay);
+  setInterval(checkNewDay, 60000);
 
   render();
 })();
